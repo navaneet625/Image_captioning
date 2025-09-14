@@ -96,14 +96,18 @@ def main():
         avg_loss = epoch_loss / len(loader)
         print(f"Epoch {epoch+1} finished in {elapsed:.1f}s — avg loss {avg_loss:.4f}")
 
-        # save checkpoint
-        ckpt = {
-            "epoch": epoch + 1,
-            "encoder_state": encoder.state_dict(),
-            "decoder_state": decoder.state_dict(),
-            "vocab": vocab.word2idx,
-            "cfg": cfg
-        }
+        # 🔥 Save checkpoint only every 10 epochs
+        if (epoch + 1) % 10 == 0 or (epoch + 1) == num_epochs:
+            ckpt = {
+                "epoch": epoch + 1,
+                "encoder_state": encoder.state_dict(),
+                "decoder_state": decoder.state_dict(),
+                "vocab": vocab.word2idx,
+                "cfg": cfg
+            }
+            save_checkpoint(ckpt, os.path.join(args.exp_dir, f"ckpt_epoch{epoch+1}.pth"))
+            print(f"✅ Saved checkpoint at epoch {epoch+1}")
+
         save_checkpoint(ckpt, os.path.join(args.exp_dir, f"ckpt_epoch{epoch+1}.pth"))
         print("Saved checkpoint.")
 

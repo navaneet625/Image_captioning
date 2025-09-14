@@ -15,7 +15,7 @@ model:
 training:
   batch_size: 64       
   lr: 5e-4      
-  epochs: 35       
+  epochs: 40      
   grad_clip: 5.0
   print_every: 50
   

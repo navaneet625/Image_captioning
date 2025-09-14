@@ -15,3 +15,6 @@ image-caption-simple/
 │  ├─ train.py               # minimal training loop + save checkpoint
 │  └─ infer.py               # load checkpoint -> generate caption for one image
 └─ example.jpg               # demo image for quick test
+|__train.py
+|
+|___print_modelsummary.py
