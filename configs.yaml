@@ -1,0 +1,21 @@
+use_cuda: true
+
+data:
+  images_dir: "data/images"
+  captions_json: "data/captions.json"
+  min_freq: 5     
+
+model:
+  attention_dim: 512
+  embed_dim: 512     
+  decoder_dim: 512
+  max_len: 30       
+  dropout: 0.4  
+
+training:
+  batch_size: 64       
+  lr: 5e-4      
+  epochs: 35       
+  grad_clip: 5.0
+  print_every: 50
+  
