@@ -149,7 +149,7 @@ if __name__ == "__main__":
         prepare_captions(CAPTIONS_TXT, CAPTIONS_JSON)
     else:
         raise FileNotFoundError("❌ captions.txt not found in data/")
-
+    
     # # Step 1: Preprocess captions/images
     # preprocess_dataset(IMAGES_DIR, CAPTIONS_JSON, PROC_DIR)
 
