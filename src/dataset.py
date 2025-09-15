@@ -1,11 +1,16 @@
 import os
 import json
+from pathlib import Path
+
 from collections import Counter
 
 import torch
 from PIL import Image
 from torch.utils.data import Dataset
 from torchvision import transforms
+
+BASE_DIR = Path(__file__).resolve().parent
+DATA_DIR = BASE_DIR / "data" / "processed"
 
 PAD = "<pad>"
 START = "<start>"
@@ -109,8 +114,19 @@ class CaptionDataset(Dataset):
             self.transform = transform
 
         if vocab is None:
+            # Build vocab from all splits if processed_dir exists
+            all_captions = {}
+            for split_file in ['train.json', 'val.json', 'test.json']:
+                split_path = Path(DATA_DIR) / 'processed' / split_file
+                if split_path.exists():
+                    with open(split_path, "r") as f:
+                        split_caps = json.load(f)
+                        all_captions.update(split_caps)
+            if not all_captions:
+                all_captions = self.captions  # fallback to current captions
+
             self.vocab = Vocabulary(min_freq)
-            self.vocab.build_from_captions(self.captions)
+            self.vocab.build_from_captions(all_captions)
         else:
             self.vocab = vocab
 
@@ -141,3 +157,4 @@ class CaptionDataset(Dataset):
         for i, c in enumerate(captions):
             padded[i, :len(c)] = c
         return images, padded, torch.tensor(lengths, dtype=torch.long)
+    

@@ -6,7 +6,7 @@ import subprocess
 import torch
 import json
 from sklearn.model_selection import train_test_split
-from src.prepare_captions import prepare_captions 
+from src.prepare_captions import prepare_captions
 
 # ----------------------------
 # ⚡ Config
@@ -17,6 +17,20 @@ IMAGES_DIR = DATA_DIR / "Images"
 CAPTIONS_JSON = DATA_DIR / "captions.json"
 CAPTIONS_TXT = DATA_DIR / "captions.txt"
 PROC_DIR = DATA_DIR / "processed"
+
+EXPERIMENTS_DIR = BASE_DIR / "experiments"
+CHECKPOINT_DIR = EXPERIMENTS_DIR / "checkpoints"
+RESULTS_DIR = EXPERIMENTS_DIR / "results"
+
+# ----------------------------
+# ⚡ Remove old checkpoints to rebuild vocab
+# ----------------------------
+import shutil
+shutil.rmtree(CHECKPOINT_DIR, ignore_errors=True)
+
+CHECKPOINT_DIR.mkdir(parents=True, exist_ok=True)
+RESULTS_DIR.mkdir(parents=True, exist_ok=True)
+
 
 # ----------------------------
 # 1️⃣ Cleanup functions
@@ -136,13 +150,13 @@ if __name__ == "__main__":
     else:
         raise FileNotFoundError("❌ captions.txt not found in data/")
 
-    # Step 1: Preprocess captions/images
-    preprocess_dataset(IMAGES_DIR, CAPTIONS_JSON, PROC_DIR)
+    # # Step 1: Preprocess captions/images
+    # preprocess_dataset(IMAGES_DIR, CAPTIONS_JSON, PROC_DIR)
 
-    # Step 2: Run training
-    train_script = BASE_DIR / "train.py"
-    if not train_script.exists():
-        raise FileNotFoundError(f"Training script not found at {train_script}")
-    run_script(train_script, python_exe="python3", env=env)
+    # # Step 2: Run training
+    # train_script = BASE_DIR / "train.py"
+    # if not train_script.exists():
+    #     raise FileNotFoundError(f"Training script not found at {train_script}")
+    # run_script(train_script, python_exe="python3", env=env)
 
     print("\n✅ Pipeline completed successfully!")

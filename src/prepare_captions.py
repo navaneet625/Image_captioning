@@ -31,3 +31,4 @@ def prepare_captions(captions_txt="data/captions.txt", output_json="data/caption
 
 if __name__ == "__main__":
     prepare_captions()
+    

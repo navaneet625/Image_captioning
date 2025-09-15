@@ -50,3 +50,4 @@ for img_name in sample_images:
         print(f"📷 {img_name}: {caption}\n")
     except FileNotFoundError:
         print(f"⚠️ Image {img_name} not found at {img_path}")
+        

@@ -77,21 +77,21 @@ class DecoderWithAttention(nn.Module):
         self.eval()
         with torch.no_grad():
             h, c = self.init_hidden_state(encoder_out)
-            word = torch.tensor([vocab.start_idx], device=device).long()
+            word = torch.tensor([vocab.start_idx], device=device).long()  # shape: (1,)
             seq = []
             for _ in range(max_len):
-                emb = self.embedding(word).squeeze(0)  # (embed_dim,)
-                context, alpha = self.attention(encoder_out, h)
-                gate = self.sigmoid(self.f_beta(h))
+                emb = self.embedding(word).squeeze(1)  # (1, embed_dim)
+                context, alpha = self.attention(encoder_out, h)  # (1, encoder_dim), (1, L)
+                gate = self.sigmoid(self.f_beta(h))  # (1, encoder_dim)
                 context = gate * context
-                lstm_input = torch.cat([emb, context.squeeze(0)], dim=-1).unsqueeze(0)  # (1, input_dim)
-                h, c = self.decode_step(lstm_input.squeeze(0), (h, c))
-                preds = self.fc(h)  # (1, vocab_size) or (vocab_size,)
+                lstm_input = torch.cat([emb, context], dim=1)  # (1, embed_dim + encoder_dim)
+                h, c = self.decode_step(lstm_input, (h, c))  # feed batch correctly
+                preds = self.fc(h)  # (1, vocab_size)
                 _, next_word = preds.max(dim=1)
                 next_idx = next_word.item()
                 if next_idx == vocab.end_idx:
                     break
                 seq.append(next_idx)
-                word = next_word
-            # convert list of idx to words
+                word = next_word.unsqueeze(0) 
             return vocab.decode_indices(seq)
+        

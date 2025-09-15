@@ -33,3 +33,4 @@ class Attention(nn.Module):
         # compute context as weighted sum
         context = (encoder_out * alpha.unsqueeze(2)).sum(dim=1)  # (B, encoder_dim)
         return context, alpha
+    

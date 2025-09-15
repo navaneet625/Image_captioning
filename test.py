@@ -1,10 +1,10 @@
 import os
 import yaml
-from pathlib import Path
 import torch
 from torch.utils.data import DataLoader
+from pathlib import Path
 
-from src.dataset import CaptionDataset
+from src.dataset import CaptionDataset, Vocabulary
 from src.encoder import EncoderCNN
 from src.decoder import DecoderWithAttention
 
@@ -13,41 +13,58 @@ from src.decoder import DecoderWithAttention
 # -----------------------------
 BASE_DIR = Path("/content/drive/MyDrive/image_caption")
 DATA_DIR = BASE_DIR / "data" / "processed"
-EXPERIMENTS_DIR = BASE_DIR / "experiments"
-CHECKPOINT_DIR = EXPERIMENTS_DIR / "exp1" 
-RESULTS_DIR = EXPERIMENTS_DIR / "results"
+EXP_DIR = BASE_DIR / "experiments" / "checkpoints"
+CHECKPOINT_PATH = EXP_DIR / "ckpt_epoch40.pth"
+RESULTS_DIR = BASE_DIR / "results"
 RESULTS_DIR.mkdir(parents=True, exist_ok=True)
-
-# -----------------------------
-# Load config
-# -----------------------------
-cfg_path = BASE_DIR / "src" / "configs.yaml"
-with open(cfg_path, "r") as f:
-    cfg = yaml.safe_load(f)
-
-# Update dataset paths for testing
-cfg["data"]["images_dir"] = str(BASE_DIR / "data" / "Images")
-cfg["data"]["captions_json"] = str(DATA_DIR / "test.json")  # or val.json
 
 # -----------------------------
 # Device
 # -----------------------------
-device = torch.device("cuda" if torch.cuda.is_available() and cfg.get("use_cuda", True) else "cpu")
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 print(f"Using device: {device}")
 
 # -----------------------------
-# Dataset & Dataloader
+# Load checkpoint
+# -----------------------------
+ckpt = torch.load(CHECKPOINT_PATH, map_location=device)
+print(f"✅ Loaded checkpoint from {CHECKPOINT_PATH.name}")
+
+vocab_word2idx = ckpt["vocab"]
+
+# Rebuild Vocabulary object
+vocab = Vocabulary()
+vocab.word2idx = vocab_word2idx
+vocab.idx2word = {idx: word for word, idx in vocab_word2idx.items()}
+
+# -----------------------------
+# Load config
+# -----------------------------
+CONFIG_PATH = BASE_DIR / "configs.yaml"
+with open(CONFIG_PATH, "r") as f:
+    cfg = yaml.safe_load(f)
+
+# Update paths
+cfg["data"]["images_dir"] = str(BASE_DIR / "data" / "Images")
+cfg["data"]["captions_json"] = str(DATA_DIR / "test.json")  # your test captions
+
+# -----------------------------
+# Dataset & DataLoader
 # -----------------------------
 ds = CaptionDataset(
     images_dir=cfg["data"]["images_dir"],
     captions_json=cfg["data"]["captions_json"],
-    min_freq=cfg["data"].get("min_freq", 1),
+    vocab=vocab,
     max_len=cfg["model"].get("max_len", 20)
 )
-vocab = ds.vocab
-pad_idx = vocab.pad_idx
 
-loader = DataLoader(ds, batch_size=1, shuffle=False, collate_fn=CaptionDataset.collate_fn, num_workers=0)
+loader = DataLoader(
+    ds,
+    batch_size=1,  # batch=1 for generate()
+    shuffle=False,
+    collate_fn=CaptionDataset.collate_fn,
+    num_workers=0
+)
 
 # -----------------------------
 # Models
@@ -62,43 +79,30 @@ decoder = DecoderWithAttention(
     dropout=float(cfg["model"].get("dropout", 0.5))
 ).to(device)
 
-# -----------------------------
-# Load checkpoint
-# -----------------------------
-checkpoint_epoch = 20  # choose which checkpoint to load
-ckpt_path = CHECKPOINT_DIR / f"ckpt_epoch{checkpoint_epoch}.pth"
-ckpt = torch.load(ckpt_path, map_location=device)
-
-encoder.load_state_dict(ckpt["encoder_state"])
 decoder.load_state_dict(ckpt["decoder_state"])
-decoder.eval()
+encoder.load_state_dict(ckpt["encoder_state"])
 encoder.eval()
-print(f"✅ Loaded checkpoint from epoch {checkpoint_epoch}")
+decoder.eval()
+print("✅ Models loaded and ready.")
 
 # -----------------------------
 # Generate captions
 # -----------------------------
 results = {}
 with torch.no_grad():
-    for images, caps, lengths, img_names in loader:
+    for i, (images, _, lengths) in enumerate(loader):
         images = images.to(device)
-        encoder_out = encoder(images)
-        outputs, _ = decoder.sample(encoder_out)  # assumes decoder.sample() generates predicted captions
-
-        # Convert indices to words
-        captions_str = []
-        for output in outputs:
-            words = [vocab.idx2word[idx.item()] for idx in output if idx.item() != pad_idx]
-            captions_str.append(" ".join(words))
-
-        results[img_names[0]] = captions_str
+        encoder_out = encoder(images)  # (1, L, encoder_dim)
+        caption = decoder.generate(encoder_out, vocab=vocab, max_len=cfg["model"].get("max_len", 20), device=device)
+        img_name = ds.keys[i]
+        results[img_name] = caption
+        print(f"{img_name}: {caption}")
 
 # -----------------------------
 # Save results
 # -----------------------------
 import json
-results_path = RESULTS_DIR / f"predicted_captions_epoch{checkpoint_epoch}.json"
-with open(results_path, "w") as f:
-    json.dump(results, f, indent=4)
+with open(RESULTS_DIR / "generated_captions.json", "w") as f:
+    json.dump(results, f, indent=2)
 
-print(f"✅ Test captions saved at {results_path}")
+print(f"✅ Captions saved at {RESULTS_DIR / 'generated_captions.json'}")

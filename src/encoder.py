@@ -72,3 +72,4 @@ class EncoderCNN(nn.Module):
             with torch.no_grad():
                 feat = self.forward(img_t).squeeze(0).cpu()  # (L, D)
             torch.save(feat, os.path.join(out_dir, fn + ".pt"))
+            
