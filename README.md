@@ -1,50 +1,55 @@
+# 🖼️ Image Captioning with Attention (PyTorch)
+
+Implementation of the **“Show, Attend and Tell”** paper (Xu et al., 2015) using PyTorch.  
+The model generates natural language captions for images using an **encoder–decoder with attention**.
 
 ---
 
 ## ⚡ Features
 
-- **Encoder:** ResNet50 extracts spatial image features.
-- **Attention:** Additive attention to focus on image regions.
-- **Decoder:** LSTM generates captions using attention-weighted features.
-- **Data preprocessing:** Converts `captions.txt` → `captions.json` and splits dataset into train/val/test.
-- **Pipeline:** Automated cleanup, preprocessing, training, and checkpointing.
-- **Results:** Generated captions saved in `results/generated_captions.json`.
-- **Visualization:** `visualize_captions.py` shows random images with predicted captions.
-- **Testing:** `test.py` evaluates model performance on the test set.
+- **Encoder:** ResNet50 (default) or VGG19 extracts spatial image features.
+- **Attention:** Additive attention mechanism to focus on informative image regions.
+- **Decoder:** LSTM with gating and attention to generate captions.
+- **Data Preprocessing:**
+  - Converts Flickr-style `captions.txt` → `captions.json`.
+  - Splits into train/test datasets.
+- **Training Pipeline:**  
+  Automated cleanup, preprocessing, training, and checkpointing (`run_pipeline.py`).
+- **Evaluation:**  
+  - `eval.py` computes BLEU-1 to BLEU-4 scores.  
+  - `test.py` generates captions on the test split.  
+- **Visualization:** `visualize_captions.py` shows random images with predicted captions.  
+- **Model Summary:** `print_modelsummary.py` prints encoder/decoder architecture with parameters.  
+- **Results:** Captions and metrics saved in `experiments/results/`.
 
 ---
 
 ## 🛠 Installation
 
-1. Clone the repository:
 ```bash
+# Clone repository
 git clone <repo_url>
 cd image_caption
 
-
+# Create virtual environment
 python3 -m venv venv
-source venv/bin/activate   # macOS/Linux
+source venv312/bin/activate   # macOS/Linux
 venv\Scripts\activate      # Windows
 
-
+# Install dependencies
 pip install --upgrade pip
 pip install -r requirements.txt
 
 
-* Adjust training parameters in configs.yaml
+🚀 Usage
+1️⃣ Preprocess + Train
+    python3.12 run_pipeline.py
+2️⃣ Evaluate (BLEU scores)
+    python3.12 eval.py --checkpoint experiments/checkpoints/latest.pth --split test
+3️⃣ Generate Captions (Test)
+    python3 test.py
+4️⃣ Visualize Captions
+    python3 visualize_captions.py
+5️⃣ Model Summary
+    python3 print_modelsummary.py
 
-
-python3 run_pipeline.py   
-1. Training checkpoints are saved in experiments/checkpoints.
-2. Generated captions appear in results/generated_captions.json.
-
-
-python3 test.py
-1. Loads the latest checkpoint (e.g., ckpt_epoch50.pth).
-2. Generates captions for images in the test set.
-3. Saves results to results/generated_captions.json.
-
-
-python3 visualize_captions.py
-1. Random images are displayed with their predicted captions.
-2. Generated captions are stored in results/generated_captions.json.

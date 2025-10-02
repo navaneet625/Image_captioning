@@ -2,7 +2,7 @@
 import torch
 from torchinfo import summary
 import yaml
-from src.encoder import EncoderCNN
+from src.encoder import EncoderResNet50
 from src.decoder import DecoderWithAttention
 from src.dataset import CaptionDataset
 
@@ -15,16 +15,15 @@ def print_model_summary(config_path="configs.yaml", batch_size=4, device="cpu"):
     device = torch.device(device)
 
     # ----- Encoder -----
-    encoder = EncoderCNN(pretrained=False).to(device)
+    encoder = EncoderResNet50(pretrained=False).to(device)
     dummy_images = torch.randn(batch_size, 3, 224, 224).to(device)
     encoder_out = encoder(dummy_images)
     print("✅ Encoder summary:")
     summary(encoder, input_data=dummy_images, verbose=2)
 
     # ----- Decoder -----
-    vocab_size = 5000  # fallback if you don't want to load actual vocab
-    if "data" in cfg:
-        # load captions to compute vocab size
+    vocab_size = 5000 
+    if "path" in cfg:
         ds = CaptionDataset(
             images_dir=cfg["data"]["images_dir"],
             captions_json=cfg["data"]["captions_json"],

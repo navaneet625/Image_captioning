@@ -1,7 +1,7 @@
 import os
 import json
+import random
 from pathlib import Path
-
 from collections import Counter
 
 import torch
@@ -52,9 +52,8 @@ class Vocabulary:
     def encode_caption(self, text, max_len=None):
         toks = [START] + self._tokenize(text) + [END]
         idxs = [self.word2idx.get(t, self.word2idx[UNK]) for t in toks]
-        if max_len is not None:
-            if len(idxs) > max_len:
-                idxs = idxs[:max_len]
+        if max_len is not None and len(idxs) > max_len:
+            idxs = idxs[:max_len]
         return idxs
 
     def decode_indices(self, indices):
@@ -88,20 +87,26 @@ class Vocabulary:
 
 class CaptionDataset(Dataset):
     """
-    Expect project layout:
+    Project layout:
       data/
-        images/    (img files)
-        captions.json  -> {"img1.jpg": ["a cat on a mat", ...], ...}
-    This dataset returns:
-      image_tensor (PIL transforms applied), caption_idx_list (first caption)
+        Images/      (image files)
+        processed/
+            train.json
+            test.json
+
+    Returns:
+      image_tensor, caption_indices
     """
 
-    def __init__(self, images_dir, captions_json, vocab=None, min_freq=1, transform=None, max_len=20):
+    def __init__(self, images_dir, captions_json, vocab=None,
+                 min_freq=1, transform=None, max_len=20, mode="train"):
         with open(captions_json, "r", encoding="utf-8") as f:
             self.captions = json.load(f)
+
         self.images_dir = images_dir
         self.keys = sorted(list(self.captions.keys()))
         self.max_len = max_len
+        self.mode = mode  # "train" or "eval"
 
         if transform is None:
             self.transform = transforms.Compose([
@@ -113,17 +118,17 @@ class CaptionDataset(Dataset):
         else:
             self.transform = transform
 
+        # Build vocab if not passed
         if vocab is None:
-            # Build vocab from all splits if processed_dir exists
             all_captions = {}
-            for split_file in ['train.json', 'val.json', 'test.json']:
-                split_path = Path(DATA_DIR) / 'processed' / split_file
+            for split_file in ["train.json", "test.json"]:
+                split_path = Path(DATA_DIR) / split_file
                 if split_path.exists():
                     with open(split_path, "r") as f:
                         split_caps = json.load(f)
                         all_captions.update(split_caps)
             if not all_captions:
-                all_captions = self.captions  # fallback to current captions
+                all_captions = self.captions
 
             self.vocab = Vocabulary(min_freq)
             self.vocab.build_from_captions(all_captions)
@@ -138,8 +143,16 @@ class CaptionDataset(Dataset):
         img_path = os.path.join(self.images_dir, img_name)
         img = Image.open(img_path).convert("RGB")
         img = self.transform(img)
-        # take the first caption available (you can sample others later)
-        caption = self.captions[img_name][0]
+
+        captions_list = self.captions[img_name]
+
+        if self.mode == "train":
+            # random caption for data augmentation
+            caption = random.choice(captions_list)
+        else:
+            # deterministic (first caption) for evaluation
+            caption = captions_list[0]
+
         caption_idx = self.vocab.encode_caption(caption, max_len=self.max_len)
         return img, torch.tensor(caption_idx, dtype=torch.long)
 
@@ -147,14 +160,16 @@ class CaptionDataset(Dataset):
     def collate_fn(batch):
         """
         batch: list of tuples (image_tensor, caption_tensor(var len))
-        Returns padded images tensor (B,C,H,W), captions padded (B,T), lengths
+        Returns:
+          images: (B,C,H,W)
+          captions: (B,T)
+          lengths: (B,)
         """
         images, captions = zip(*batch)
         images = torch.stack(images, dim=0)
         lengths = [len(c) for c in captions]
         max_len = max(lengths)
-        padded = torch.full((len(captions), max_len), fill_value=0, dtype=torch.long)  # 0 should be pad idx in vocab
+        padded = torch.full((len(captions), max_len), fill_value=0, dtype=torch.long)
         for i, c in enumerate(captions):
             padded[i, :len(c)] = c
         return images, padded, torch.tensor(lengths, dtype=torch.long)
-    
